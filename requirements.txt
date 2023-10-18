@@ -1,0 +1,11 @@
+# Requirements for setting up virtual environment - "pip freeze" execution
+
+behave==1.2.6
+contextlib2==21.6.0
+parse==1.19.1
+parse-type==0.6.2
+ruamel.yaml==0.17.35
+ruamel.yaml.clib==0.2.8
+schema==0.7.5
+sismic==1.6.5
+six==1.16.0
