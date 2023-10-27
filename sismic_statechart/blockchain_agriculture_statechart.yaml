@@ -1,0 +1,116 @@
+########################################
+# Actors: Farmer, Processor, Distributor, Retailer, Customer, Regulator
+# Main State Transitions: Farmer -> Processor -> Distributor - > Retailer -> Customer -> Regulator
+# Two parallel states: ProductFlow, RegulatorControl
+# Conditions: cropIsReady, cropHarvested, receivedCrop, cropProcessed, stockAvailable, stockReady,
+#             productFound, qualityCriteriaMet, safetyCriteriaMet
+########################################
+
+statechart:
+  # Initial Information about the Statechart
+  name: ProductLifecycle
+  description: Sismic Statechart representing the course of a product from farmer to customer using Ethereum Blockchain.
+  # Initial conditions for the flow of product
+  preamble: |
+    cropIsReady = False
+    cropHarvested = False
+    receivedCrop = False
+    cropProcessed = False
+    stockAvailable = False
+    stockReady = False
+    productFound = False
+    qualityCriteriaMet = False
+    safetyCriteriaMet = False
+  root state: 
+    name: agricultureSystem
+  parallel states:
+    # Product Flow from Farmer to Customer
+    - name: ProductFlow
+    # Regulation of the Product from Regulator
+    - 
+  states:
+    - id: agricultureSystem
+      type: compound
+      initial: idle
+      states:
+        - id: idle
+        - id: Farmer
+          type: compound
+          initial: planting
+          states:
+            - id: planting
+            - id: harvesting
+          transitions:
+            - source: planting
+              target: harvesting
+              event: harvest
+        - id: Processor
+          type: compound
+          initial: receiving
+          states:
+            - id: receiving
+            - id: processing
+          transitions:
+            - source: receiving
+              target: processing
+              event: process
+        - id: Distributor
+          type: compound
+          initial: storing
+          states:
+            - id: storing
+            - id: distributing
+          transitions:
+            - source: storing
+              target: distributing
+              event: distribute
+        - id: Retailer
+          type: compound
+          initial: stocking
+          states:
+            - id: stocking
+            - id: selling
+          transitions:
+            - source: stocking
+              target: selling
+              event: sell
+        - id: Customer
+          type: compound
+          initial: browsing
+          states:
+            - id: browsing
+            - id: purchasing
+          transitions:
+            - source: browsing
+              target: purchasing
+              event: purchase
+        - id: Regulator
+          type: compound
+          initial: monitoring
+          states:
+            - id: monitoring
+            - id: auditing
+          transitions:
+            - source: monitoring
+              target: auditing
+              event: audit
+
+  transitions:
+    - source: idle
+      target: Farmer
+      event: start
+    - source: Farmer
+      target: Processor
+      event: sendToProcessor
+    - source: Processor
+      target: Distributor
+      event: sendToDistributor
+    - source: Distributor
+      target: Retailer
+      event: sendToRetailer
+    - source: Retailer
+      target: Customer
+      event: sendToCustomer
+    - source: Customer
+      target: idle
+      event: end

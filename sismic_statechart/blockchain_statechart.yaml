@@ -1,5 +1,0 @@
-statechart:
-  name: sismic_blockchain
-  description: Sismic statechart for integration into an Ethereum Blockchain Agriculture system
-  root state:
-    name: 
