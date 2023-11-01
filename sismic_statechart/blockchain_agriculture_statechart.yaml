@@ -2,20 +2,31 @@
 # Actors: Farmer, Processor, Distributor, Retailer, Customer, Regulator
 # Main State Transitions: Farmer -> Processor -> Distributor - > Retailer -> Customer -> Regulator
 # Two parallel states: ProductFlow, RegulatorControl
-# Conditions: cropIsReady, cropHarvested, receivedCrop, cropProcessed, stockAvailable, stockReady,
-#             productFound, qualityCriteriaMet, safetyCriteriaMet
+# State Conditions: 
+#  - Farmer: seedsPlanted, cropIsReady, cropHarvested, cropSent
+#  - Processor: receivedCrop, cropProcessed, processedCropSent
+#  - Distributor: stockReceived, stockEvaluated, deliverStocks, stockAvailable
+#  - Retailer: 
+#  - Customer: productFound, orderCreated, orderReceived, paymentComplete
+#  - Regulator: qualityCriteriaMet, safetyCriteriaMet
 ########################################
 
 statechart:
   # Initial Information about the Statechart
-  name: ProductLifecycle
+  name: Product Lifecycle in Blockchain
   description: Sismic Statechart representing the course of a product from farmer to customer using Ethereum Blockchain.
   # Initial conditions for the flow of product
   preamble: |
+    seedsPlanted = False
     cropIsReady = False
     cropHarvested = False
+    cropSent = False
     receivedCrop = False
     cropProcessed = False
+    processedCropSent = False
+    stockReceived = False
+    stockEvaluated = False
+    deliverStocks = Fasle
     stockAvailable = False
     stockReady = False
     productFound = False
@@ -23,94 +34,120 @@ statechart:
     safetyCriteriaMet = False
   root state: 
     name: agricultureSystem
-  parallel states:
-    # Product Flow from Farmer to Customer
-    - name: ProductFlow
-    # Regulation of the Product from Regulator
-    - 
-  states:
-    - id: agricultureSystem
-      type: compound
-      initial: idle
-      states:
-        - id: idle
-        - id: Farmer
-          type: compound
-          initial: planting
+    parallel states:
+      # Product Flow from Farmer to Customer
+      - name: ProductFlow
+        initial: Farmer
+        states:
+          # Farmer's Process
+          ####################
+          # States: Plant Seeds -> Crop Ready -> Harvest Crop -> Check Quality
+          ####################
+          - name: Farmer
+            initial: plantSeeds
+            states:
+              - name: plantSeeds
+                transitions:
+                  - target: cropReady
+                    action: seedsPlanted = True
+              - name: cropReady
+                transitions:
+                  - target: cropHarvest
+                    guard: seedsPlanted == True
+                    action: cropIsReady = True
+              - name: cropHarvest
+                transitions:
+                  - target: cropQuality
+                    guard:  cropIsReady == True
+                    action: cropHarvested = True
+              - name: cropQuality
+                transitions:
+                  - target: Processor
+                    guard: qualityCriteriaMet == True and safetyCriteriaMet == True and cropHarvested == True
+                    action: |
+                      cropSent = True
+                      qualityCriteriaMet = False
+                      safetyCriteriaMet = False
+          # Processor's Process
+          ####################
+          # States: Receive Crop -> Process Crop -> Check Quality
+          ####################
+          - name: Processor
+            initial: receiveCrop
+            states:
+              - name: receivedCrop
+                transitions:
+                  - target: cropProcess
+                    guard: cropSent == True
+                    action: receivedCrop = True
+              - name: cropProcess
+                transitions:
+                  - target: processedCropQuality
+                    guard:  receivedCrop == True
+                    action: cropProcessed = True
+              - name: processedCropQuality
+                transitions:
+                  - target: Distributor
+                    guard: qualityCriteriaMet == True and safetyCriteriaMet == True and cropProcessed == True
+                    action: |
+                      processedCropSent = True
+                      qualityCriteriaMet = False
+                      safetyCriteriaMet = False
+          # Distributor's Process
+          ####################
+          # States: Receive Stock -> Evaluate Stock -> Check Stock Quality
+          ####################
+          - name: Distributor
+            initial: receiveStock
+            states:
+              - name: receiveStock
+                transitions:
+                  - target: evaluateStocks
+                    guard: processedCropSent == True
+                    action: stockReceived = True
+              - name: evaluateStocks
+                transitions:
+                  - target: stockQuality
+                    guard:  stockReceived == True
+                    action: |
+                      stockAvailable = True
+                      stockEvaluated = True
+              - name: stockQuality
+                transitions:
+                  - target: Retailer
+                    guard: qualityCriteriaMet == True and safetyCriteriaMet == True and stockEvaluated == True
+                    action: |
+                      deliverStocks = True
+                      stockAvailable = False
+                      qualityCriteriaMet = False
+                      safetyCriteriaMet = False
+                  - target: Retailer
+                    guard: qualityCriteriaMet == True and safetyCriteriaMet == True and stockAvailable == True
+                    action: |
+                      deliverStocks = True
+                      qualityCriteriaMet = False
+                      safetyCriteriaMet = False
+          # Retailer's Process
+          ####################
+          # States: Receive Stocks -> Process Crop -> Check Quality
+          ####################
+          - name: Retailer
+          # Customer's Process
+          - name: Customer
+            type: final
+      # Regulation of the Product from Regulator on each Stakeholder
+      - name: RegulatorControl
+          ####################
+          # States: Check Farmer, Check Processor, Check Distributor, Check Retailer
+          ####################
+        initial: checkFarmer
           states:
-            - id: planting
-            - id: harvesting
-          transitions:
-            - source: planting
-              target: harvesting
-              event: harvest
-        - id: Processor
-          type: compound
-          initial: receiving
-          states:
-            - id: receiving
-            - id: processing
-          transitions:
-            - source: receiving
-              target: processing
-              event: process
-        - id: Distributor
-          type: compound
-          initial: storing
-          states:
-            - id: storing
-            - id: distributing
-          transitions:
-            - source: storing
-              target: distributing
-              event: distribute
-        - id: Retailer
-          type: compound
-          initial: stocking
-          states:
-            - id: stocking
-            - id: selling
-          transitions:
-            - source: stocking
-              target: selling
-              event: sell
-        - id: Customer
-          type: compound
-          initial: browsing
-          states:
-            - id: browsing
-            - id: purchasing
-          transitions:
-            - source: browsing
-              target: purchasing
-              event: purchase
-        - id: Regulator
-          type: compound
-          initial: monitoring
-          states:
-            - id: monitoring
-            - id: auditing
-          transitions:
-            - source: monitoring
-              target: auditing
-              event: audit
+            - name: checkFarmer
+              transitions:
+                - target: checkProcessor
+                action:
+            - name: checkProcessor
+            - name: checkDistributor
+            - name: checkRetailer
 
-  transitions:
-    - source: idle
-      target: Farmer
-      event: start
-    - source: Farmer
-      target: Processor
-      event: sendToProcessor
-    - source: Processor
-      target: Distributor
-      event: sendToDistributor
-    - source: Distributor
-      target: Retailer
-      event: sendToRetailer
-    - source: Retailer
-      target: Customer
-      event: sendToCustomer
-    - source: Customer
-      target: idle
-      event: end
+ 
