@@ -14,7 +14,7 @@
 statechart:
   # Initial Information about the Statechart
   name: Product Lifecycle in Blockchain
-  description: Sismic Statechart representing the course of a product from farmer to customer using Ethereum Blockchain.
+  description: Sismic Statechart representing the course of a product from farmer to customer using Ethereum Blockchain. Regulator is used to ensure quality and safery criteria
   # Initial conditions for the flow of product
   preamble: |
     seedsPlanted = False
@@ -26,15 +26,19 @@ statechart:
     processedCropSent = False
     stockReceived = False
     stockEvaluated = False
-    deliverStocks = Fasle
+    deliverStocks = False
     stockAvailable = False
-    stockReady = False
-    productFound = False
+    productReceived = False
+    productStored = False
+    productAvailable = False
+    paymentCompleted = False
+    deliveryMade = False
+    waitingDelivery = False
     qualityCriteriaMet = False
     safetyCriteriaMet = False
   root state: 
     name: agricultureSystem
-    parallel states:
+    states:
       # Product Flow from Farmer to Customer
       - name: ProductFlow
         initial: Farmer
@@ -64,18 +68,22 @@ statechart:
                 transitions:
                   - target: Processor
                     guard: qualityCriteriaMet == True and safetyCriteriaMet == True and cropHarvested == True
-                    action: |
-                      cropSent = True
-                      qualityCriteriaMet = False
-                      safetyCriteriaMet = False
+                    action: cropSent = True
+                  - target: checkFarmer
+                    guard: qualityCriteriaMet == False and safetyCriteriaMet == False and cropHarvested == True
+                    action: cropSent = True
+                      
           # Processor's Process
           ####################
           # States: Receive Crop -> Process Crop -> Check Quality
           ####################
           - name: Processor
+            on entry: |
+              qualityCriteriaMet = False
+              safetyCriteriaMet = False
             initial: receiveCrop
             states:
-              - name: receivedCrop
+              - name: receiveCrop
                 transitions:
                   - target: cropProcess
                     guard: cropSent == True
@@ -89,15 +97,18 @@ statechart:
                 transitions:
                   - target: Distributor
                     guard: qualityCriteriaMet == True and safetyCriteriaMet == True and cropProcessed == True
-                    action: |
-                      processedCropSent = True
-                      qualityCriteriaMet = False
-                      safetyCriteriaMet = False
+                    action: processedCropSent = True
+                  - target: checkProcessor
+                    guard: qualityCriteriaMet == False and safetyCriteriaMet == False and cropProcessed == True
+                    action: processedCropSent = True
           # Distributor's Process
           ####################
           # States: Receive Stock -> Evaluate Stock -> Check Stock Quality
           ####################
           - name: Distributor
+            on entry: |
+              qualityCriteriaMet = False
+              safetyCriteriaMet = False
             initial: receiveStock
             states:
               - name: receiveStock
@@ -119,35 +130,106 @@ statechart:
                     action: |
                       deliverStocks = True
                       stockAvailable = False
-                      qualityCriteriaMet = False
-                      safetyCriteriaMet = False
-                  - target: Retailer
-                    guard: qualityCriteriaMet == True and safetyCriteriaMet == True and stockAvailable == True
+                  - target: checkDistributor
+                    guard: qualityCriteriaMet == False and safetyCriteriaMet == False and stockEvaluated == True
                     action: |
                       deliverStocks = True
-                      qualityCriteriaMet = False
-                      safetyCriteriaMet = False
+                      stockAvailable = False
+                  #- target: Retailer
+                    #guard: qualityCriteriaMet == True and safetyCriteriaMet == True and stockAvailable == True
+                    #action: |
+                      #deliverStocks = True
+                      #qualityCriteriaMet = False
+                      #safetyCriteriaMet = False
           # Retailer's Process
           ####################
-          # States: Receive Stocks -> Process Crop -> Check Quality
+          # States: Receive Products -> Store Products -> Sell Products or Order Products from Distributor
           ####################
           - name: Retailer
+            on entry: |
+              qualityCriteriaMet = False
+              safetyCriteriaMet = False
+            initial: receiveProducts
+            states:
+              - name: receiveProducts
+                transitions:
+                  - target: storeProducts
+                    guard: deliverStocks == True
+                    action: productReceived = True
+              - name: storeProducts
+                transitions:
+                  - target: sellProducts
+                    guard:  productReceived == True
+                    action: productStored = True
+              #- name: orderProducts
+               # type: deep history
+               # memory: awaitDelivery
+                #transitions:
+                 # - target: stockQuality
+                  #  guard:  productAvailable == False
+                 # - target: awaitDelivery
+                   # guard:  productAvailable == True
+              - name: sellProducts
+                transitions:
+                  - target: Customer
+                    guard:  qualityCriteriaMet == True and safetyCriteriaMet == True and productsStored == True
+                    action: productAvailable == True
+                  - target: checkRetailer
+                    guard: qualityCriteriaMet == False and safetyCriteriaMet == False and productsStored == True
+                    action: productAvailable = True
           # Customer's Process
+          ####################
+          # States: Browse Products -> Payment or Browse Products -> Place Order -> Await Delivery -> Payment
+          ####################
           - name: Customer
-            type: final
-      # Regulation of the Product from Regulator on each Stakeholder
+            on entry: |
+              qualityCriteriaMet = False
+              safetyCriteriaMet = False
+            initial: browseProducts
+            states:
+              - name: browseProducts
+                transitions:
+                  - target: payment
+                    guard: productAvailable == True
+                  - target: placeOrder
+                    guard: productAvailable == False
+              - name: placeOrder
+                transitions:
+                  - target: awaitDelivery
+                    action: deliveryMade = True
+              - name: awaitDelivery
+                transitions:
+                  - target: payment
+                    guard: productAvailable == True
+                    action: waitingDelivery = False
+                  - target: Retailer
+                    guard: productAvailable == False
+                    action: waitingDelivery = True
+              - name: payment
+                on entry: paymentCompleted = True
+                type: final
+      # Regulation of the Product from Regulator on each Stakeholder until reached the Customer
       - name: RegulatorControl
           ####################
           # States: Check Farmer, Check Processor, Check Distributor, Check Retailer
           ####################
         initial: checkFarmer
-          states:
-            - name: checkFarmer
-              transitions:
-                - target: checkProcessor
-                action:
-            - name: checkProcessor
-            - name: checkDistributor
-            - name: checkRetailer
+        states:
+          - name: checkFarmer
+            transitions:
+              - target: cropQuality
+                action: qualityCriteriaMet = True and safetyCriteriaMet = True
+          - name: checkProcessor
+            transitions:
+              - target: processedCropQuality
+                action: qualityCriteriaMet = True and safetyCriteriaMet = True
+          - name: checkDistributor
+            transitions:
+              - target: stockQuality
+                action: qualityCriteriaMet = True and safetyCriteriaMet = True
+          - name: checkRetailer
+            transitions:
+              - target: sellProducts
+                action: qualityCriteriaMet = True and safetyCriteriaMet = True
 
  

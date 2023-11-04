@@ -1,0 +1,97 @@
+@startuml
+scale 0.5
+title Product Lifecycle in Blockchain
+state "agricultureSystem" as agricultureSystem {
+  state "RegulatorControl" as RegulatorControl {
+    [*] --> checkFarmer
+    state "checkRetailer" as checkRetailer {
+      checkRetailer --> sellProducts : / qualityCriteriaMet = True and safetyCriteriaMet = True
+    }
+    state "checkDistributor" as checkDistributor {
+      checkDistributor --> stockQuality : / qualityCriteriaMet = True and safetyCriteriaMet = True
+    }
+    state "checkProcessor" as checkProcessor {
+      checkProcessor --> processedCropQuality : / qualityCriteriaMet = True and safetyCriteriaMet = True
+    }
+    state "checkFarmer" as checkFarmer {
+      checkFarmer --> cropQuality : / qualityCriteriaMet = True and safetyCriteriaMet = True
+    }
+  }
+  state "ProductFlow" as ProductFlow {
+    [*] --> Farmer
+    state "Customer" as Customer {
+      Customer : **entry** / qualityCriteriaMet = False; safetyCriteriaMet = False
+      [*] --> browseProducts
+      awaitDelivery --> [*] : [productAvailable == True] / waitingDelivery = False
+      browseProducts --> [*] : [productAvailable == True]
+      state "awaitDelivery" as awaitDelivery {
+        awaitDelivery --> Retailer : [productAvailable == False] / waitingDelivery = True
+      }
+      state "placeOrder" as placeOrder {
+        placeOrder --> awaitDelivery : / deliveryMade = True
+      }
+      state "browseProducts" as browseProducts {
+        browseProducts --> placeOrder : [productAvailable == False]
+      }
+    }
+    state "Retailer" as Retailer {
+      Retailer : **entry** / qualityCriteriaMet = False; safetyCriteriaMet = False
+      [*] --> receiveProducts
+      state "sellProducts" as sellProducts {
+        sellProducts --> Customer : [qualityCriteriaMet == True and safetyCriteriaMet == True and productsStored == True] / productAvailable == True
+        sellProducts --> checkRetailer : [qualityCriteriaMet == False and safetyCriteriaMet == False and productsStored == True] / productAvailable = True
+      }
+      state "storeProducts" as storeProducts {
+        storeProducts --> sellProducts : [productReceived == True] / productStored = True
+      }
+      state "receiveProducts" as receiveProducts {
+        receiveProducts --> storeProducts : [deliverStocks == True] / productReceived = True
+      }
+    }
+    state "Distributor" as Distributor {
+      Distributor : **entry** / qualityCriteriaMet = False; safetyCriteriaMet = False
+      [*] --> receiveStock
+      state "stockQuality" as stockQuality {
+        stockQuality --> Retailer : [qualityCriteriaMet == True and safetyCriteriaMet == True and stockEvaluated == True] / deliverStocks = True; stockAvailable = False
+        stockQuality --> checkDistributor : [qualityCriteriaMet == False and safetyCriteriaMet == False and stockEvaluated == True] / deliverStocks = True; stockAvailable = False
+      }
+      state "evaluateStocks" as evaluateStocks {
+        evaluateStocks --> stockQuality : [stockReceived == True] / stockAvailable = True; stockEvaluated = True
+      }
+      state "receiveStock" as receiveStock {
+        receiveStock --> evaluateStocks : [processedCropSent == True] / stockReceived = True
+      }
+    }
+    state "Processor" as Processor {
+      Processor : **entry** / qualityCriteriaMet = False; safetyCriteriaMet = False
+      [*] --> receiveCrop
+      state "processedCropQuality" as processedCropQuality {
+        processedCropQuality --> Distributor : [qualityCriteriaMet == True and safetyCriteriaMet == True and cropProcessed == True] / processedCropSent = True
+        processedCropQuality --> checkProcessor : [qualityCriteriaMet == False and safetyCriteriaMet == False and cropProcessed == True] / processedCropSent = True
+      }
+      state "cropProcess" as cropProcess {
+        cropProcess --> processedCropQuality : [receivedCrop == True] / cropProcessed = True
+      }
+      state "receiveCrop" as receiveCrop {
+        receiveCrop --> cropProcess : [cropSent == True] / receivedCrop = True
+      }
+    }
+    state "Farmer" as Farmer {
+      [*] --> plantSeeds
+      state "cropQuality" as cropQuality {
+        cropQuality --> Processor : [qualityCriteriaMet == True and safetyCriteriaMet == True and cropHarvested == True] / cropSent = True
+        cropQuality --> checkFarmer : [qualityCriteriaMet == False and safetyCriteriaMet == False and cropHarvested == True] / cropSent = True
+      }
+      state "cropHarvest" as cropHarvest {
+        cropHarvest --> cropQuality : [cropIsReady == True] / cropHarvested = True
+      }
+      state "cropReady" as cropReady {
+        cropReady --> cropHarvest : [seedsPlanted == True] / cropIsReady = True
+      }
+      state "plantSeeds" as plantSeeds {
+        plantSeeds --> cropReady : / seedsPlanted = True
+      }
+    }
+  }
+}
+@enduml

@@ -1,0 +1,217 @@
+statechart:
+
+  name: Product Lifecycle in Blockchain
+
+  preamble: |
+    # Initialize flags
+    seedsPlanted = False  
+    cropHarvested = False
+    cropSent = False
+    receivedCrop = False
+    cropProcessed = False
+    processedCropSent = False
+    stockReceived = False 
+    stockEvaluated = False
+    deliverStocks = False
+    stockAvailable = False
+    productFound = False
+
+    farmerChecked = False
+    processorChecked = False
+    distributorChecked = False
+    retailerChecked = False
+
+  root state:
+    name: agricultureSystem
+    
+    parallel states:
+
+      - name: ProductFlow
+        initial: Farmer
+        states:
+        
+          - name: Farmer
+            initial: PlantSeeds
+            states:
+
+              - name: PlantSeeds
+                on_entry: seedsPlanted = True
+                transitions:
+                  cropReady: Harvesting
+
+              - name: Harvesting
+                on_entry: cropHarvested = True 
+                transitions:
+                  cropSent: Processor
+
+          - name: Processor  
+            initial: ReceiveCrop
+            states:
+            
+              - name: ReceiveCrop
+                on_entry: receivedCrop = True
+                transitions:
+                  cropReceived: ProcessCrop
+              
+              - name: ProcessCrop
+                on_entry: cropProcessed = True
+                transitions:
+                  processingDone: QualityCheck
+
+          - name: Distributor
+            initial: ReceiveShipment
+            states:
+
+              - name: ReceiveShipment
+                on_entry: 
+                  - record_receipt
+                  - stock_shelves
+                transitions:
+                  stockReceived: EvaluateStock  
+
+              - name: EvaluateStock
+                on_entry: 
+                  - inspect_stock
+                  - verify_quantity
+                transitions:
+                  stockEvaluated: QualityCheck
+
+          - name: Retailer
+            initial: ReceiveShipment
+            states:
+
+              - name: ReceiveShipment
+                on_entry:
+                  - record_receipt
+                  - stock_shelves
+                transitions:  
+                  shipmentReceived: ReadyForSale
+
+              - name: ReadyForSale
+                on_entry: stockReady = True
+                transitions:
+                  productFound: Sale  
+
+              - name: Sale
+                on_entry: 
+                  - record_sale
+                transitions:
+                  sold: Shipped
+
+          - name: Customer
+            initial: BrowseProducts
+            states:
+
+              - name: BrowseProducts
+                on_entry: productFound = True 
+                transitions:
+                  proceedToBuy: PlaceOrder
+
+              - name: PlaceOrder
+                on_entry: create_order
+                transitions:
+                  orderPlaced: AwaitDelivery
+                
+              - name: AwaitDelivery
+                on_entry: track_shipment
+                transitions:
+                  delivered: Payment  
+
+              - name: Payment
+                on_entry: record_payment
+                transitions:
+                  paid: DeliveryReceived
+
+          - name: Regulator
+            initial: CheckFarmer
+            states:
+
+              - name: CheckFarmer
+                on_entry: farmerChecked = True
+                transitions:
+                  farmerChecked: CheckProcessor
+
+              - name: CheckProcessor
+                on_entry: processorChecked = True
+                transitions:
+                  processorChecked: CheckDistributor
+
+              - name: CheckDistributor
+                on_entry: distributorChecked = True
+                transitions:
+                  distributorChecked: CheckRetailer
+
+              - name: CheckRetailer
+                on_entry: retailerChecked = True
+                transitions:
+                  retailerChecked: AwaitReports
+
+      - name: RegulatorControl
+        states:
+        
+          - name: NoChecks
+            on_entry: init_checks
+            transitions:
+              beginChecks: SelectCheck
+
+          - name: SelectCheck
+            on_entry: select_actor()
+            transitions:
+              farmer: CheckFarmer
+              processor: CheckProcessor
+              distributor: CheckDistributor
+              retailer: CheckRetailer
+
+          # Check states for each actor
+
+          - name: AwaitReports
+            on_entry: collect_findings()
+            transitions:
+              reportsReady: ReviewFindings
+
+          - name: ReviewFindings
+            on_entry: review_findings()
+            transitions:
+              reviewComplete: IssueCertificates    
+
+          - name: IssueCertificates
+            type: final
+
+    final: 
+      - ProductFlow.DeliveryReceived
+      - RegulatorControl.IssueCertificates
+
+transitions:
+
+  cropReady:
+    - ProductFlow.Harvesting
+    - RegulatorControl.SelectCheck
+
+  cropProcessed:  
+    - ProductFlow.QualityCheck
+    - RegulatorControl.SelectCheck
+  
+  stockEvaluated:
+    - ProductFlow.QualityCheck
+    - RegulatorControl.CheckDistributor  
+
+  shipmentReceived:
+    - ProductFlow.ReadyForSale
+    - RegulatorControl.CheckRetailer
+  
+  orderPlaced:
+    - ProductFlow.AwaitDelivery
+    - RegulatorControl.AwaitReports
+
+  delivered:
+    - ProductFlow.Payment
+    - RegulatorControl.ReviewFindings    
+
+  paid:
+    - ProductFlow.DeliveryReceived
+    - RegulatorControl.IssueCertificates
+
+
+
+
+  
